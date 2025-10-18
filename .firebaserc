@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "staging": "maizemate-narasaraopet",
+    "default": "maizemate-narasaraopet"
+  },
+  "targets": {},
+  "etags": {}
+}

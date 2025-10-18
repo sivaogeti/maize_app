@@ -1,0 +1,50 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "maizemate-narasaraopet",
+          "appId": "1:304044475305:android:7c9f0c776b476956c27ab8",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "maizemate-narasaraopet",
+          "configurations": {
+            "android": "1:304044475305:android:7c9f0c776b476956c27ab8",
+            "ios": "1:304044475305:ios:5f77af45b361ba79c27ab8",
+            "web": "1:304044475305:web:46eff432a559d9fbc27ab8"
+          }
+        }
+      }
+    }
+  },
+  "emulators": {
+    "singleProjectMode": true,
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8085,
+      "rules": "firestore.rules"
+    },
+    "ui": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 4001
+    },
+    "hub": {
+      "host": "127.0.0.1",
+      "port": 4401
+    },
+    "logging": {
+      "host": "127.0.0.1",
+      "port": 4501
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "asia-south1",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

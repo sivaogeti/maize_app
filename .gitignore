@@ -1,0 +1,32 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub-cache/
+build/
+flutter_export_environment.sh
+
+# Android build outputs
+android/**/build/
+android-*/**/build/
+*.apk
+*.aab
+app/**/outputs/
+**/intermediates/
+**/generated/
+
+# iOS (if present)
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/App.framework
+DerivedData/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# System
+.DS_Store
+Thumbs.db

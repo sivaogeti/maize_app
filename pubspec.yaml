@@ -1,0 +1,53 @@
+name: app_clean
+description: Field app
+publish_to: "none"
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.6
+  provider: ^6.1.2
+  go_router: ^16.2.4
+
+  # Firebase
+  firebase_core: ^4.1.1
+  firebase_auth: ^6.1.0
+  cloud_firestore: ^6.0.2
+
+  # UI / Utils
+  intl: ^0.20.2
+  shared_preferences: ^2.2.3
+  image_picker: ^1.0.8
+  signature: ^6.3.0
+
+  # Location/Maps
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.6.0
+  path_provider: ^2.1.3
+
+  # Isar (community fork runtime + libs)
+  isar_community: 3.3.0-dev.3
+  isar_flutter_libs: 3.1.0+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Codegen
+  build_runner: ^2.4.9
+  json_serializable: ^6.8.0
+
+  # Isar (community fork codegen)
+  isar_community_generator: 3.3.0-dev.3
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/maizemate_logo.png
+    - assets/icons/maize_single.png
+    - assets/icons/maize_dual.png

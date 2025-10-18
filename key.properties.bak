@@ -1,0 +1,4 @@
+storeFile=android/app/my-release-key.jks
+storePassword=testing
+keyAlias=upload
+keyPassword=testing
