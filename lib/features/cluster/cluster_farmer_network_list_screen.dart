@@ -8,21 +8,17 @@ import '../../core/services/auth_service.dart';
 
 import 'package:intl/intl.dart';
 
-/*final testUid = '<one FI uid that should be visible>';
-final d = await FirebaseFirestore.instance.doc('users/$testUid').get();
-print('can read: ${d.exists}');*/
-
-class ClusterFarmerRegistrationsListScreen extends StatefulWidget {
+class ClusterFarmerNetworkListScreen extends StatefulWidget {
   final String? uid;
 
-  const ClusterFarmerRegistrationsListScreen({Key? key, this.uid}) : super(key: key);
+  const ClusterFarmerNetworkListScreen({Key? key, this.uid}) : super(key: key);
 
   @override
-  State<ClusterFarmerRegistrationsListScreen> createState() =>
-      _ClusterFarmerRegistrationsListScreenState();
+  State<ClusterFarmerNetworkListScreen> createState() =>
+      _ClusterFarmerNetworkListScreenScreenState();
 }
 
-class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegistrationsListScreen>  {
+class _ClusterFarmerNetworkListScreenScreenState extends State<ClusterFarmerNetworkListScreen>  {
   String? _selectedFiId;          // chosen Field Incharge uid (from dropdown)
   bool _submitted = false;        // after clicking Submit, we lock to one FI
   String? _selectedLogId;         // chosen log doc id (from logs dropdown)
@@ -66,7 +62,7 @@ class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegi
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Field Incharge - Farmer Registrations List Page'),
+        title: const Text('Field Incharge - Farmer Network List Page'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back',
@@ -147,7 +143,7 @@ class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegi
                                 ? null
                                 : () {
                               context.pushNamed(
-                                'ci.field_incharges.farmer-registrations.detail',
+                                'ci.field_incharges.farmer-networks.detail',
                                 pathParameters: {'uid': _selectedFiId!},
                               );
                             },

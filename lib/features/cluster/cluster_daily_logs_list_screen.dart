@@ -255,7 +255,7 @@ class _ClusterDailyLogsListScreenState extends State<ClusterDailyLogsListScreen>
                                   SizedBox(width: 140, child: Text(dateStr)),
                                   Expanded(
                                     child: InkWell(
-                                      onTap: () => context.goNamed(
+                                      onTap: () => context.pushNamed(
                                         'ci.daily.log.detail',
                                         pathParameters: {
                                           'fiId': _selectedFiId!,   // selected Field Incharge

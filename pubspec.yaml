@@ -8,6 +8,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  fl_chart: ^1.1.1
+  flutter_staggered_grid_view: ^0.6.2
 
   cupertino_icons: ^1.0.6
   provider: ^6.1.2
@@ -17,17 +19,20 @@ dependencies:
   firebase_core: ^4.1.1
   firebase_auth: ^6.1.0
   cloud_firestore: ^6.0.2
+  firebase_storage: 13.0.3   # or latest
 
   # UI / Utils
   intl: ^0.20.2
   shared_preferences: ^2.2.3
-  image_picker: ^1.0.8
+  image_picker: ^1.1.0
   signature: ^6.3.0
 
   # Location/Maps
   geolocator: ^14.0.2
-  google_maps_flutter: ^2.6.0
+  google_maps_flutter: ^2.3.0
   path_provider: ^2.1.3
+  # For area
+  maps_toolkit: 3.1.0   # Spherical area on the Earth in m²
 
   # Isar (community fork runtime + libs)
   isar_community: 3.3.0-dev.3

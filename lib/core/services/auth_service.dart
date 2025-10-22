@@ -109,8 +109,10 @@ class AuthService extends ChangeNotifier {
         _role = null;
         _orgPathUids = const [];
         notifyListeners();
+        print('AuthState: user is currently signed out');
       } else {
         await _loadProfile(u.uid); // sets role + orgPathUids + _current + notifies
+        print('AuthState: signed in UID=${u.uid}, email=${u.email}');
       }
     });
   }
@@ -155,11 +157,29 @@ class AuthService extends ChangeNotifier {
   /// When [role] is provided, it is written to the Firestore profile doc.
   // in lib/core/services/auth_service.dart
   Future<void> login({String? email, String? username, required String password}) async {
-    final emailToUse = (email?.isNotEmpty == true)
+   /* final emailToUse = (email?.isNotEmpty == true)
         ? email!.trim()
         : (username?.isNotEmpty == true)
         ? '${username!.trim().toLowerCase()}@maizemate.local'
-        : null;
+        : null;*/
+
+    final emailToUse = () {
+      if (username?.toLowerCase() == 'md1') {
+        // Special case for MD/Manager — use the Gmail you set
+        return 'osnarayanapersonal@gmail.com';
+      } else if (email?.isNotEmpty == true) {
+        return email!.trim();
+      } else if (username?.isNotEmpty == true) {
+        // Default behavior for all other users
+        return '${username!.trim().toLowerCase()}@maizemate.local';
+      } else {
+        return null;
+      }
+    }();
+
+    debugPrint('Login attempt -> username: $username, emailToUse: $emailToUse, password: $password, role: $_role');
+
+
     if (emailToUse == null) {
       throw ArgumentError('Provide either email or username');
     }

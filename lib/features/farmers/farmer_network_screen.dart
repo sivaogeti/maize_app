@@ -22,8 +22,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // lib/features/farmers/farmer_network_screen.dart (top of file)
-const List<String> kSoilTypes = <String>[
+/*const List<String> kSoilTypes = <String>[
   'Alluvial','Alkaline','Arid','Black','Forest','Laterite','Peaty','Marshy','Red','Yellow',
+];*/
+
+const List<String> kSoilTypes = <String>[
+  'Wet(Magani)','Dry(Metta)',
+];
+
+const List<String> kSowingMethods = <String>[
+  'Labour','Push Planter','Tractor Planter',
+];
+
+const List<String> kSowingSpacings = <String>[
+  '24*7','22*5','22*7',
 ];
 
 const List<String> kSoilTextures = <String>[
@@ -31,7 +43,7 @@ const List<String> kSoilTextures = <String>[
 ];
 
 const List<String> kWaterSources = <String>[
-  'Canal','BoreWell-2 Inches','BoreWell-3 Inches','BoreWell-4 IonSowingTypeChangednches'
+  'Canal','BoreWell-2 Inches','BoreWell-3 Inches','BoreWell-4 Inches','Lift'
 ];
 
 final List<Map<String, dynamic>> _sowingTypes = [
@@ -56,18 +68,13 @@ class _FarmerNetworkScreenState extends State<FarmerNetworkScreen> {
 
   String _sowingType = 'Single'; // <- the single source of truth
 
-  // at state level
-  String? _soilType;
-  
-  String? _soilTexture;
-
   // Farmer-level extra filters/fields
   final TextEditingController _surveyCtrl = TextEditingController();
   final TextEditingController _sowingDateCtrl = TextEditingController();
 
-
   bool _dualFemale = false;
   bool _dualMale = false;
+
   @override
   void initState() {
     super.initState();
@@ -76,7 +83,6 @@ class _FarmerNetworkScreenState extends State<FarmerNetworkScreen> {
     _surveyCtrl.addListener(rebuild);
     _sowingDateCtrl.addListener(rebuild);
   }
-
 
   @override
   void dispose() {
@@ -193,6 +199,8 @@ class _FarmerNetworkScreenState extends State<FarmerNetworkScreen> {
                   const Divider(),
                   _kv('Season', f.season ?? ''),
                   //_kv('Hybrid', f.hybrid ?? ''),
+                  _kv('Sowing Method', f.sowingMethod ?? ''),
+                  _kv('Sowing Spacing', f.sowingSpacing ?? ''),
                   _kv('Proposed AreaProposed Area', f.plantedArea?.toString() ?? ''),
                   _kv('Water Source', f.waterSource ?? ''),
                   _kv('Previous Crop', f.previousCrop ?? ''),
@@ -702,6 +710,10 @@ class _NewAgreementSheetState extends State<_NewAgreementSheet> {
 
   String? _waterSourceCtrl; // ← make it nullable
 
+  String? _sowingMethod; // ← make it nullable
+
+  String? _sowingSpacing; // ← make it nullable
+
   final _formKey = GlobalKey<FormState>();
 
 
@@ -737,6 +749,8 @@ class _NewAgreementSheetState extends State<_NewAgreementSheet> {
   String _sowingType = 'Single'; // Single | Dual
   bool _dualFemale = false;
   bool _dualMale = false;
+
+
 
   // Photo (picker)
   final ImagePicker _picker = ImagePicker();
@@ -804,7 +818,6 @@ class _NewAgreementSheetState extends State<_NewAgreementSheet> {
     data['orgPathUids'] ??= (org.isNotEmpty ? org : <String>[uid]);
     data['createdAt']   ??= FieldValue.serverTimestamp();
 
-    final String id = data['id'] as String;
 
     await db
         .collection('farmers')
@@ -855,6 +868,8 @@ class _NewAgreementSheetState extends State<_NewAgreementSheet> {
       'territory'        : _territoryCtrl.text.trim(),
       'season'           : _season,
       //'hybrid'           : _hybridCtrl.text.trim(),
+      'sowingmethod'      : _sowingMethod,
+      'sowingspacing'      : _sowingSpacing,
       'proposedArea'     : area,
       'waterSource'      : _waterSourceCtrl,
       'previousCrop'     : prevCropWithExtras,
@@ -1024,6 +1039,8 @@ class _NewAgreementSheetState extends State<_NewAgreementSheet> {
 
               const SizedBox(height: 8),
 
+
+
             /*  // Agreement: Season + Hybrid + Proposed Area
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1040,6 +1057,49 @@ class _NewAgreementSheetState extends State<_NewAgreementSheet> {
                 ),
               ),
               _tf('Hybrid (required)', _hybridCtrl, required: true),*/
+
+
+              // Sowing Method
+              DropdownButtonFormField<String>(
+                value: _soilType,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Sowing Method',
+                  //prefixIcon: Icon(Icons.eco_outlined), // 🌿 eco/leaf icon
+                  border: OutlineInputBorder(),
+                ),
+                hint: const Text('Select Sowing Method'),
+                items: kSowingMethods
+                    .map<DropdownMenuItem<String>>(
+                      (e) => DropdownMenuItem<String>(value: e, child: Text(e)),
+                )
+                    .toList(),
+                onChanged: (v) => setState(() => _sowingMethod = v), // v is String?
+                validator: (v) => v == null ? 'Please Sowing Method' : null,
+              ),
+              const SizedBox(height: 12),
+
+              // Sowing Spacing
+              DropdownButtonFormField<String>(
+                value: _soilType,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Sowing Spacing(inches)',
+                  //prefixIcon: Icon(Icons.eco_outlined), // 🌿 eco/leaf icon
+                  border: OutlineInputBorder(),
+                ),
+                hint: const Text('Select Sowing Spacing(inches)'),
+                items: kSowingSpacings
+                    .map<DropdownMenuItem<String>>(
+                      (e) => DropdownMenuItem<String>(value: e, child: Text(e)),
+                )
+                    .toList(),
+                onChanged: (v) => setState(() => _sowingSpacing = v), // v is String?
+                validator: (v) => v == null ? 'Please Sowing Spacing' : null,
+              ),
+              const SizedBox(height: 12),
+
+
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: TextFormField(
@@ -1114,7 +1174,7 @@ class _NewAgreementSheetState extends State<_NewAgreementSheet> {
                       (e) => DropdownMenuItem<String>(value: e, child: Text(e)),
                 )
                     .toList(),
-                onChanged: (v) => setState(() => _soilType = v), // v is String?
+                onChanged: (v) => setState(() => _waterSourceCtrl = v), // v is String?
                 validator: (v) => v == null ? 'Please select Water Source' : null,
               ),
               const SizedBox(height: 12),

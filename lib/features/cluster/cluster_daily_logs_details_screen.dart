@@ -8,15 +8,6 @@ import 'package:provider/provider.dart';
 
 import '../../core/services/auth_service.dart';
 
-String _firstNonEmpty(List values) {
-  for (final v in values) {
-    if (v == null) continue;
-    final s = v.toString().trim();
-    if (s.isNotEmpty) return s;
-  }
-  return '—';
-}
-
 String _fmtDateFlexible(dynamic v, {String pattern = 'yyyy-MM-dd'}) {
   if (v == null) return '—';
   if (v is String) {
@@ -31,7 +22,6 @@ String _fmtDateFlexible(dynamic v, {String pattern = 'yyyy-MM-dd'}) {
   // Fallback
   return v.toString();
 }
-
 
 class ClusterDailyLogsDetailsScreen extends StatelessWidget {
   const ClusterDailyLogsDetailsScreen({
@@ -178,4 +168,14 @@ class ClusterDailyLogsDetailsScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+
+String _firstNonEmpty(List values) {
+  for (final v in values) {
+    if (v == null) continue;
+    final s = v.toString().trim();
+    if (s.isNotEmpty) return s;
+  }
+  return '—';
 }

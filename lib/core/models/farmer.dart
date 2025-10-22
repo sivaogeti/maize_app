@@ -13,8 +13,14 @@ class Farmer {
   final String? territory;
   final String? season;
   final String? hybrid;
+  final String? hybridMale;
+  final String? hybridFemale;
+  final String? hybridMaleWeight;
+  final String? hybridFemaleWeight;
   final num?    plantedArea;
   final String? waterSource;
+  final String? sowingMethod;
+  final String? sowingSpacing;
   final String? previousCrop;
   final String? soilType;
   final String? soilTexture;
@@ -38,8 +44,14 @@ class Farmer {
     this.territory,
     this.season,
     this.hybrid,
+    this.hybridMale,
+    this.hybridFemale,
+    this.hybridMaleWeight,
+    this.hybridFemaleWeight,
     this.plantedArea,
     this.waterSource,
+    this.sowingMethod,
+    this.sowingSpacing,
     this.previousCrop,
     this.soilType,
     this.soilTexture,

@@ -4,10 +4,29 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:signature/signature.dart';
 
 import '../../core/services/auth_service.dart';
 
 import 'package:intl/intl.dart';         // if _ymd is not already available
+import 'dart:typed_data' hide Uint8List;
+
+import 'package:image_picker/image_picker.dart';
+
+import 'dart:typed_data'; // for Uint8List
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:signature/signature.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+
+import '../../core/services/auth_service.dart';
+
+
 
 
 String _ymd(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
@@ -108,26 +127,106 @@ class _InputSupplyScreenState extends State<InputSupplyScreen> {
     }
   }
 
+  // Inside _InputSupplyScreenState:
+
+  Uint8List? _farmerPhotoBytes;
+  final SignatureController _signatureController = SignatureController(
+    penStrokeWidth: 3,
+    penColor: Colors.black,
+    exportBackgroundColor: Colors.white,
+  );
+
   Future<void> _saveToFirestore() async {
     if (_saving) return;
     setState(() => _saving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Saved (demo)')),
-    );
+
+    try {
+      // Ensure user is available
+      final user = FirebaseAuth.instance.currentUser ??
+          await FirebaseAuth.instance.authStateChanges().firstWhere((u) => u != null);
+      final createdBy = user!.uid;
+
+      // Collect values from your UI. If you later wire TextEditingControllers, use them here.
+      final String? farmerId = (_selectedFarmerOrFieldId?.trim().isEmpty ?? true)
+          ? null
+          : _selectedFarmerOrFieldId!.trim();
+
+      final DateTime date = DateTime.now(); // replace with your selected date if you store one
+      final String docId = _buildDocId(date: date, createdBy: createdBy, farmerId: farmerId);
+
+      String? farmerPhotoUrl;
+      String? signatureUrl;
+
+      String safeDocId = docId.replaceAll(RegExp(r'[^\w\-]'), '_');
+
+      // Upload farmer photo
+      if (_farmerPhotoBytes != null && _farmerPhotoBytes!.isNotEmpty) {
+        final ref = FirebaseStorage.instance.ref().child('input_supply_photos/$safeDocId.jpg');
+        final metadata = SettableMetadata(contentType: 'image/jpeg');
+        await ref.putData(_farmerPhotoBytes!, metadata);
+        farmerPhotoUrl = await ref.getDownloadURL();
+      }
+
+      // Upload signature
+      if (_farmerSignatureBytes != null && _farmerSignatureBytes!.isNotEmpty) {
+        final ref = FirebaseStorage.instance.ref().child('signatures/$safeDocId.png');
+        final metadata = SettableMetadata(contentType: 'image/png');
+        await ref.putData(_farmerSignatureBytes!, metadata);
+        signatureUrl = await ref.getDownloadURL();
+      }
+
+
+
+      // Build data map. Add any other fields you have (brand, qty, uom, itemType, attachments, signature).
+      final Map<String, dynamic> data = {
+        'farmerId': farmerId,
+        //'createdBy': createdBy,
+        'createdBy': user.uid,
+        'orgPathUids': [user.uid],       // required for creatingInOwnOrg()
+        'createdAt': FieldValue.serverTimestamp(),
+        'localCreatedAt': date.toIso8601String(),
+        //'receivedByFarmer': _receivedByFarmer,
+        // placeholder fields - replace with real values from controllers when added:
+        'itemType': 'Fertiliser',
+        'brandOrGrade': null,
+        'batchNo': null,
+        'uom': null,
+        'quantity': null,
+        'farmerPhotoUrl': farmerPhotoUrl,
+        'signatureUrl': signatureUrl,
+        'source': 'input_supply_screen',
+      };
+
+      final db = FirebaseFirestore.instance;
+
+      // Write using set() (merging false) — change to update() if doc already exists
+      await db.collection('input_supplies').doc(docId).set(data);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved to Firestore (docId: $docId)')),
+      );
+
+      // Optionally save last docId for later navigation
+      setState(() => _lastSavedDocId = docId);
+    } on FirebaseException catch (e) {
+      // Firestore-specific errors
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Firestore error: ${e.code} — ${e.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Save failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
-  void _openDetails() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => const AlertDialog(
-        title: Text('Details'),
-        content: Text('Open InputsDetailsScreen here.'),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -216,8 +315,8 @@ class _InputSupplyScreenState extends State<InputSupplyScreen> {
                       _uomQtyRow(),
                       const SizedBox(height: 12),
                       _issuerDropdown(),
-                      const SizedBox(height: 12),
-                      _receivedBySwitch(),
+                      //const SizedBox(height: 12),
+                      //_receivedBySwitch(),
                       const SizedBox(height: 12),
                       _attachmentsRow(),
                       const SizedBox(height: 16),
@@ -344,7 +443,7 @@ class _InputSupplyScreenState extends State<InputSupplyScreen> {
   }
 
   Widget _issuerDropdown() {
-    const items = ['Field Incharge', 'Cluster Incharge', 'Territory Incharge'];
+    const items = ['Cluster Incharge', 'Territory Incharge'];
     return DropdownButtonFormField<String>(
       value: items.first,
       items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
@@ -365,11 +464,20 @@ class _InputSupplyScreenState extends State<InputSupplyScreen> {
     );
   }
 
+
+
   Widget _attachmentsRow() {
     return Row(
       children: [
         OutlinedButton.icon(
-          onPressed: () {},
+          onPressed: () async {
+            final picker = ImagePicker();
+            final picked = await picker.pickImage(source: ImageSource.camera);
+            if (picked != null) {
+              _farmerPhotoBytes = await picked.readAsBytes();
+              setState(() {});
+            }
+          },
           icon: const Icon(Icons.photo_camera_outlined),
           label: const Text('Farmer Photo'),
         ),
@@ -380,42 +488,69 @@ class _InputSupplyScreenState extends State<InputSupplyScreen> {
           decoration: BoxDecoration(
             color: Colors.green.shade100,
             borderRadius: BorderRadius.circular(12),
+            image: _farmerPhotoBytes != null
+                ? DecorationImage(
+              image: MemoryImage(_farmerPhotoBytes!),
+              fit: BoxFit.cover,
+            )
+                : null,
           ),
-          child: const Icon(Icons.image, size: 40),
+          child: _farmerPhotoBytes == null
+              ? const Icon(Icons.image, size: 40)
+              : null,
         ),
       ],
     );
   }
 
+
+  Uint8List? _farmerSignatureBytes; // Add this to your State
+
   Widget _signatureSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Signature', style: TextStyle(fontWeight: FontWeight.w600)),
+        const Text('Farmer Signature', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        SizedBox(
-          key: _signatureKey,
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(8),
+          ),
           height: 220,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.grey.shade400),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Center(child: Text('Signature Pad Placeholder')),
+          child: Signature(
+            controller: _signatureController,
+            backgroundColor: Colors.white,
           ),
         ),
         const SizedBox(height: 8),
         Row(
           children: [
             TextButton.icon(
-              onPressed: () {},
+              onPressed: () {
+                _signatureController.clear();
+                setState(() {
+                  _farmerSignatureBytes = null;
+                });
+              },
               icon: const Icon(Icons.clear),
               label: const Text('Clear Signature'),
             ),
             const Spacer(),
             FilledButton.icon(
-              onPressed: () {},
+              onPressed: () async {
+                if (_signatureController.isNotEmpty) {
+                  final signatureBytes = await _signatureController.toPngBytes();
+                  if (signatureBytes != null) {
+                    setState(() {
+                      _farmerSignatureBytes = signatureBytes;
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Signature captured!')),
+                    );
+                  }
+                }
+              },
               icon: const Icon(Icons.check),
               label: const Text('Use'),
             ),
@@ -425,7 +560,7 @@ class _InputSupplyScreenState extends State<InputSupplyScreen> {
     );
   }
 
-  /*Widget _financeAndRemarks() {
+/*Widget _financeAndRemarks() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

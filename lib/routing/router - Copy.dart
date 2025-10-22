@@ -379,37 +379,116 @@ class AppRouter extends StatelessWidget {
           path: '/manager-dashboard',
           builder: (context, state) => const ManagerDashboardScreen(),
         ),
+
+        // Manager Dashboard (optional, could keep as landing page)
+        GoRoute(
+          path: '/manager-dashboard',
+          builder: (context, state) => const ManagerDashboardScreen(),
+        ),
+
+        // Manager - Farmer Network
         GoRoute(
           path: '/manager-farmer-network',
-          builder: (context, state) => const ManagerFarmerNetworkScreen(),
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Farmer Network',
+            collectionName: 'farmers_network',
+            summaryFields: ['fieldInchargeUid'], // counts per FI maybe
+            listFields: ['networkName', 'fieldInchargeUid'],
+            chartType: ChartType.bar,
+            color: Colors.blue,
+          ),
         ),
+
+
+        // Manager - Farmer Registrations
         GoRoute(
           path: '/manager-farmer-registrations',
-          builder: (context, state) => const ManagerFarmerRegistrationsScreen(),
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Farmer Registrations',
+            collectionName: 'farmer_registrations',
+            summaryFields: ['fiUid'], // count registrations per FI
+            listFields: ['farmerName', 'fiUid'],
+            chartType: ChartType.line,
+            color: Colors.green,
+          ),
         ),
+
+        // Manager - Field Incharges
         GoRoute(
           path: '/manager-field-incharge-details',
-          builder: (context, state) => const ManagerFieldInchargeDetailsScreen(),
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Field Incharge Details',
+            collectionName: 'field_incharges',
+            summaryFields: ['orgPathUids'], // total FIs
+            listFields: ['name', 'email'],
+            chartType: ChartType.pie,
+            color: Colors.orange,
+          ),
         ),
+
+        // Manager - Daily Logs
         GoRoute(
-          path: '/manager-daily-logs',
-          builder: (context, state) => const ManagerFieldInchargeDailyLogsScreen(),
+          path: '/manager-field-incharge-daily-logs',
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Field Incharge Daily Logs',
+            collectionName: 'daily_logs',
+            summaryFields: ['ownerUid'], // logs submitted per FI
+            listFields: ['ownerUid', 'notes'],
+            chartType: ChartType.bar,
+            color: Colors.purple,
+          ),
         ),
+
+        // Manager - Activity Schedule
         GoRoute(
           path: '/manager-activity-schedule',
-          builder: (context, state) => const ManagerActivityScheduleScreen(),
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Activity Schedule',
+            collectionName: 'activity_schedule',
+            summaryFields: ['fiUid'], // total activities per FI
+            listFields: ['activityName', 'fiUid', 'scheduledDate'],
+            chartType: ChartType.line,
+            color: Colors.teal,
+          ),
         ),
+
+        // Manager - Input Activities
         GoRoute(
           path: '/manager-input-activity',
-          builder: (context, state) => const ManagerInputActivityScreen(),
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Input Activity',
+            collectionName: 'input_supplies',
+            summaryFields: ['createdBy'], // total inputs distributed per FI
+            listFields: ['inputName', 'quantity', 'createdBy'],
+            chartType: ChartType.bar,
+            color: Colors.red,
+          ),
         ),
+
+        // Manager - Field Observations
         GoRoute(
           path: '/manager-field-observations',
-          builder: (context, state) => const ManagerFieldObservationsScreen(),
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Field Observations',
+            collectionName: 'field_observations',
+            summaryFields: ['fiUid'], // observations submitted per FI
+            listFields: ['fieldName', 'notes', 'fiUid'],
+            chartType: ChartType.line,
+            color: Colors.brown,
+          ),
         ),
+
+        // Manager - Field Diagnostics
         GoRoute(
           path: '/manager-field-diagnostics',
-          builder: (context, state) => const ManagerFieldDiagnosticsScreen(),
+          builder: (context, state) => const ManagerAnalyticsScreen(
+            title: 'Manager - Field Diagnostics',
+            collectionName: 'field_diagnostics',
+            summaryFields: ['fiUid'], // diagnostics submitted per FI
+            listFields: ['fieldName', 'issue', 'fiUid'],
+            chartType: ChartType.bar,
+            color: Colors.indigo,
+          ),
         ),
 
 

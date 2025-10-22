@@ -11,16 +11,6 @@ import 'package:provider/provider.dart';
 import '../../core/services/auth_service.dart';
 
 
-import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-/// Reusable farmer lookups. Use the SAME function on the FI screen too,
-/// so both pages stay consistent.
-import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
-
 class FarmerRepo {
   static CollectionReference<Map<String, dynamic>> get _farmers =>
       FirebaseFirestore.instance.collection('farmers');
@@ -108,44 +98,6 @@ class FarmerRepo {
 const String kActivityScheduleCollection = 'activity_schedule';
 
 // Paste EXACTLY the query from your FI page here.
-Stream<List<String>> _farmerIdsSameAsFiPage(BuildContext context, String fiUid) {
-  final q = FirebaseFirestore.instance
-      .collection('<<<PASTE COLLECTION NAME>>>')     // ← paste
-      .where('<<<PASTE FIELD NAME>>>', isEqualTo: fiUid); // ← paste
-
-  return q.snapshots().map((snap) {
-    final ids = <String>{};
-    for (final d in snap.docs) {
-      final m = d.data();
-      final id = (m['farmerFieldId'] ?? m['farmerId'] ?? m['fieldId'] ?? m['id'] ?? d.id).toString();
-      if (id.isNotEmpty) ids.add(id);
-    }
-    final list = ids.toList()..sort();
-    return list;
-  });
-}
-
-
-/// Farmer/Field IDs under a specific FI (fallback to CIC if null).
-Stream<List<String>> _farmerFieldIdsByFi(BuildContext context, {required String fiUid}) {
-  // If your FI screen uses a different collection/field, paste the exact
-  // collection+where from that screen here.
-  final q = FirebaseFirestore.instance
-      .collection('farmers')
-      .where('fiUid', isEqualTo: fiUid); // or 'fieldInchargeUid'
-
-  return q.snapshots().map((snap) {
-    final ids = <String>{};
-    for (final d in snap.docs) {
-      final m = d.data();
-      final id = (m['id'] ?? m['farmerFieldId'] ?? m['farmerId'] ?? m['fieldId'] ?? d.id).toString();
-      if (id.isNotEmpty) ids.add(id);
-    }
-    final list = ids.toList()..sort();
-    return list;
-  });
-}
-
 
 class _FiRef {
   final String uid;
@@ -177,70 +129,6 @@ Stream<List<_FiRef>> _fieldInchargesForCIC(BuildContext context) {
   });
 }
 
-/// Returns all Farmer/Field IDs under a given FI by checking several
-/// possible linkage fields + orgPathUids contains <fiUid>.
-Stream<List<String>> _farmerFieldIdsForFiRobust(BuildContext context, String fiUid) {
-  final base = FirebaseFirestore.instance.collection('farmers'); // <-- change if your collection name differs
-
-  final s1 = base.where('fiUid', isEqualTo: fiUid).snapshots();
-  final s2 = base.where('fieldInchargeUid', isEqualTo: fiUid).snapshots();
-  final s3 = base.where('fi_id', isEqualTo: fiUid).snapshots();
-  final s4 = base.where('assignedFI', isEqualTo: fiUid).snapshots();
-  final s5 = base.where('ownerUid', isEqualTo: fiUid).snapshots();
-  final s6 = base.where('orgPathUids', arrayContains: fiUid).snapshots();
-
-  final controller = StreamController<List<String>>.broadcast();
-  final subs = <StreamSubscription>[];
-  final all = <String>{};
-
-  void recalcAndEmit(Iterable<QuerySnapshot<Map<String, dynamic>>> snaps) {
-    final set = <String>{};
-    for (final snap in snaps) {
-      for (final d in snap.docs) {
-        final m = d.data();
-        final id = (m['id'] ??
-            m['farmerFieldId'] ??
-            m['farmerId'] ??
-            m['fieldId'] ??
-            d.id)
-            .toString();
-        if (id.isNotEmpty) set.add(id);
-      }
-    }
-    final list = set.toList()..sort();
-    controller.add(list);
-  }
-
-  final latest = List<QuerySnapshot<Map<String, dynamic>>?>.filled(6, null);
-
-  void updateAndEmit(int i, QuerySnapshot<Map<String, dynamic>> snap) {
-    latest[i] = snap;
-    // emit only with non-null snaps; still safe to emit anytime
-    recalcAndEmit(latest.whereType<QuerySnapshot<Map<String, dynamic>>>());
-  }
-
-  subs.add(s1.listen((snap) => updateAndEmit(0, snap)));
-  subs.add(s2.listen((snap) => updateAndEmit(1, snap)));
-  subs.add(s3.listen((snap) => updateAndEmit(2, snap)));
-  subs.add(s4.listen((snap) => updateAndEmit(3, snap)));
-  subs.add(s5.listen((snap) => updateAndEmit(4, snap)));
-  subs.add(s6.listen((snap) => updateAndEmit(5, snap)));
-
-  controller.onCancel = () {
-    for (final s in subs) s.cancel();
-  };
-
-  // small debug to verify counts in your console
-  // (remove once you see the correct numbers)
-  // subs.add(s1.listen((s) => debugPrint('[CIC] fiUid count: ${s.size}')));
-  // subs.add(s6.listen((s) => debugPrint('[CIC] orgPathUids count: ${s.size}')));
-
-  return controller.stream;
-}
-
-
-
-
 class ClusterActivityScheduleDetailScreen extends StatelessWidget {
   const ClusterActivityScheduleDetailScreen({
     super.key,
@@ -252,84 +140,9 @@ class ClusterActivityScheduleDetailScreen extends StatelessWidget {
   CollectionReference<Map<String, dynamic>> get _col =>
       FirebaseFirestore.instance.collection(kActivityScheduleCollection);
 
-  String _s(dynamic v) =>
-      (v == null || v.toString().trim().isEmpty) ? '—' : v.toString();
-
-  String _fmt(dynamic v, {String pattern = 'yyyy-MM-dd'}) {
-    if (v == null) return '—';
-    if (v is Timestamp) return DateFormat(pattern).format(v.toDate());
-    if (v is DateTime)  return DateFormat(pattern).format(v);
-    final t = v.toString().trim();
-    return t.isEmpty ? '—' : t;
-  }
-
-  DataTable _opsTable(List list) => DataTable(
-    columns: const [
-      DataColumn(label: Text('S.No')),
-      DataColumn(label: Text('Operation')),
-      DataColumn(label: Text('Responsible')),
-      DataColumn(label: Text('Recommended')),
-      DataColumn(label: Text('Scheduled')),
-      DataColumn(label: Text('Completed')),
-      DataColumn(label: Text('Remarks')),
-    ],
-    rows: [
-      for (final raw in list)
-            () {
-          final r = Map<String, dynamic>.from(raw as Map);
-
-          return DataRow(cells: [
-            DataCell(Text(_s(r['sno'] ?? r['SNo']))),
-            DataCell(Text(_s(r['operation'] ?? r['name']))),
-            DataCell(Text(_s(r['responsible'] ?? r['by']))),
-            DataCell(Text(_s(r['recommendedTiming'] ?? r['recommended']))),
-            DataCell(Text(_fmt(r['scheduled']))),
-            DataCell(Text(_fmt(r['completed']))),
-            DataCell(Text(_s(r['remarks']))),
-          ]);
-        }(),
-    ],
-    headingTextStyle: const TextStyle(fontWeight: FontWeight.w600),
-    columnSpacing: 16,
-    horizontalMargin: 12,
-    showBottomBorder: true,
-  );
-
-
-  DataTable _actsTable(List list) => DataTable(
-    columns: const [
-      DataColumn(label: Text('S.No')),
-      DataColumn(label: Text('Crop Stage')),
-      DataColumn(label: Text('Activity / Inputs')),
-      DataColumn(label: Text('Supplier')),
-      DataColumn(label: Text('Scheduled')),
-      DataColumn(label: Text('Completed')),
-      DataColumn(label: Text('Remarks')),
-    ],
-    rows: [
-      for (final raw in list)
-            () {
-          final r = Map<String, dynamic>.from(raw as Map);
-
-          return DataRow(cells: [
-            DataCell(Text(_s(r['sno'] ?? r['SNo']))),
-            DataCell(Text(_s(r['stageLabel'] ?? r['stage'] ?? r['cropStage']))),
-            DataCell(Text(_s(r['activityWithSuppliers'] ?? r['activity'] ?? r['inputs']))),
-            DataCell(Text(_s(r['supplier'] ?? r['by'] ?? r['responsible']))),
-            DataCell(Text(_s(r['scheduled']))),
-            DataCell(Text(_s(r['completed']))),
-            DataCell(Text(_s(r['remarks']))),
-          ]);
-        }(),
-    ],
-    headingTextStyle: const TextStyle(fontWeight: FontWeight.w600),
-    columnSpacing: 16,
-    horizontalMargin: 12,
-    showBottomBorder: true,
-  );
-
   @override
   Widget build(BuildContext context) {
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -401,28 +214,6 @@ class ClusterActivityScheduleDetailScreen extends StatelessWidget {
                   m['fieldId'],
             );
 
-            Stream<List<String>> _farmerFieldIdsForCIC(BuildContext context) {
-              final auth = context.read<AuthService>();
-              final cicUid = auth.currentUser?.uid ?? auth.currentUserId ?? 'anon';
-
-              // Adjust collection name if yours differs (e.g. top-level "farmers")
-              final q = FirebaseFirestore.instance
-                  .collection('farmers')
-                  .where('orgPathUids', arrayContains: cicUid);
-
-              // Use the underlying broadcast snapshots stream and map it so multiple
-              // StreamBuilders can listen without "Stream has already been listened to".
-              return q.snapshots().map((snap) {
-                final ids = <String>{};
-                for (final d in snap.docs) {
-                  final m = d.data();
-                  final id = (m['id'] ?? m['farmerFieldId'] ?? m['farmerId'] ?? m['fieldId'] ?? d.id).toString();
-                  if (id.isNotEmpty) ids.add(id);
-                }
-                final list = ids.toList()..sort();
-                return list;
-              });
-            }
 
             /// navigate to the latest schedule for a chosen farmer/field
             Future<void> _openLatestFor(String farmerId) async {

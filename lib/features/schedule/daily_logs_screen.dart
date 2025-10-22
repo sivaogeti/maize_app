@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 
 String currentUid() => FirebaseAuth.instance.currentUser!.uid;
@@ -24,6 +25,7 @@ CollectionReference<Map<String, dynamic>> userLogsCol(String uid) =>
 
 class _SavedLogsTable extends StatelessWidget {
   const _SavedLogsTable();
+
 
   @override
   Widget build(BuildContext context) {
@@ -115,15 +117,7 @@ String _fmtDate(dynamic v) {
   return DateFormat('yyyy-MM-dd, HH:mm').format(dt);
 }
 
-String _fileNameDate(dynamic v) {
-  DateTime? dt;
-  if (v is Timestamp) dt = v.toDate();
-  else if (v is String) dt = DateTime.tryParse(v);
-  if (dt == null) return '';
-  return DateFormat('dMMMyyyy').format(dt); // e.g. 10Oct2025
-}
 
-String _uid() => FirebaseAuth.instance.currentUser!.uid;
 CollectionReference<Map<String, dynamic>> _userLogsCol(String uid) =>
     FirebaseFirestore.instance
         .collection('users').doc(uid).collection('daily_logs');
@@ -181,11 +175,25 @@ class _DailyLogsScreenState extends State<DailyLogsScreen> {
   DateTime? _draftCreatedAt;       // timestamp used to derive the id
 
   late final String _uid;
+
+  final Completer<GoogleMapController> _mapController = Completer();
+  CameraPosition _initialCamera = const CameraPosition(
+    target: LatLng(20.5937, 78.9629), // India center fallback
+    zoom: 5,
+  );
+  Polyline? _polyline;
+
+
   @override
   void initState() {
     super.initState();
     _loadFarmerIdItems();
     _uid = FirebaseAuth.instance.currentUser!.uid;
+    _polyline = Polyline(
+      polylineId: const PolylineId('route_polyline'),
+      points: [],
+      width: 5,
+    );
   }
 
 
@@ -459,6 +467,7 @@ class _DailyLogsScreenState extends State<DailyLogsScreen> {
     super.dispose();*/
   }
 
+
   @override
   Widget build(BuildContext context) {
     // If you later wire a FarmersProvider, replace this list with provider data.
@@ -675,20 +684,29 @@ class _DailyLogsScreenState extends State<DailyLogsScreen> {
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Container(
-              height: 160,
-              alignment: Alignment.center,
+            child: // ✅ Google Map section
+            Container(
+              height: 300,
+              margin: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(.5),
+                border: Border.all(color: Colors.grey.shade300),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Theme.of(context).dividerColor),
               ),
-              child: const Text(
-                'Map unavailable (tap Start to collect GPS)\n'
-                    'You can later swap this with google_maps_flutter.',
-                textAlign: TextAlign.center,
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: _initialCamera.target,
+                  zoom: _initialCamera.zoom,
+                ),
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
+                zoomControlsEnabled: false,
+                onMapCreated: (GoogleMapController controller) {
+                  if (!_mapController.isCompleted) _mapController.complete(controller);
+                },
+                polylines: _polyline != null ? {_polyline!} : {},
               ),
             ),
+
           ),
 
 

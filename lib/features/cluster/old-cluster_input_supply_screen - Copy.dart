@@ -8,21 +8,17 @@ import '../../core/services/auth_service.dart';
 
 import 'package:intl/intl.dart';
 
-/*final testUid = '<one FI uid that should be visible>';
-final d = await FirebaseFirestore.instance.doc('users/$testUid').get();
-print('can read: ${d.exists}');*/
-
-class ClusterFarmerRegistrationsListScreen extends StatefulWidget {
+class ClusterInputSupplyListScreen extends StatefulWidget {
   final String? uid;
 
-  const ClusterFarmerRegistrationsListScreen({Key? key, this.uid}) : super(key: key);
+  const ClusterInputSupplyListScreen({Key? key, this.uid}) : super(key: key);
 
   @override
-  State<ClusterFarmerRegistrationsListScreen> createState() =>
-      _ClusterFarmerRegistrationsListScreenState();
+  State<ClusterInputSupplyListScreen> createState() =>
+      _ClusterInputSupplyListScreenScreenState();
 }
 
-class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegistrationsListScreen>  {
+class _ClusterInputSupplyListScreenScreenState extends State<ClusterInputSupplyListScreen>  {
   String? _selectedFiId;          // chosen Field Incharge uid (from dropdown)
   bool _submitted = false;        // after clicking Submit, we lock to one FI
   String? _selectedLogId;         // chosen log doc id (from logs dropdown)
@@ -66,7 +62,7 @@ class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegi
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Field Incharge - Farmer Registrations List Page'),
+        title: const Text('Field Incharge - Input Details List Page'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back',
@@ -115,6 +111,7 @@ class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegi
                   // If nothing selected yet, default to first item (until submitted)
                   _selectedFiId ??= !_submitted ? docs.first.id : _selectedFiId;
 
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -142,17 +139,16 @@ class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegi
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          ElevatedButton.icon(
+                          ElevatedButton(
                             onPressed: _selectedFiId == null
                                 ? null
                                 : () {
-                              context.pushNamed(
-                                'ci.field_incharges.farmer-registrations.detail',
-                                pathParameters: {'uid': _selectedFiId!},
-                              );
-                            },
-                            icon: const Icon(Icons.check),
-                            label: const Text('Submit'),
+                                  context.pushNamed(
+                                    'ci.field_incharges.inputs-details.detail',
+                                    pathParameters: {'uid': _selectedFiId!},
+                                  );
+                                },
+                            child: const Text('Submit'),
                           ),
                           const SizedBox(width: 12),
                           if (_submitted)
@@ -359,45 +355,6 @@ class _ClusterFarmerRegistrationsListScreenState extends State<ClusterFarmerRegi
             ),
         ],
       ),
-      /*   body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: query.snapshots(),
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return const Center(
-              child: Text('Error loading FICs', style: TextStyle(color: Colors.red)),
-            );
-          }
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snap.data!.docs;
-          if (docs.isEmpty) {
-            return const Center(child: Text('No Field Incharges found'));
-          }
-
-          return ListView.separated(
-            itemCount: docs.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
-            itemBuilder: (context, i) {
-              final d = docs[i].data();
-              final uid   = d['uid'] as String? ?? docs[i].id;
-              final name  = d['displayName'] as String? ?? 'Unknown';
-              final phone = d['phone'] as String? ?? '';
-
-              return Material(                     // <-- add this wrapper
-                color: Theme.of(context).cardColor, // optional, keeps card look
-                child: ListTile(
-                  leading: const Icon(Icons.person_outline),
-                  title: Text(name),
-                  subtitle: Text(uid),
-                  onTap: () => context.push('/cic/field-incharge/$uid'),
-                ),
-              );
-            },
-          );
-        },
-      ),*/
     );
   }
 

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:app_clean/core/services/auth_service.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
-import '../../core/services/audit_meta.dart';
 
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -72,8 +71,6 @@ class _SavedLogsTable extends StatelessWidget {
 
               final dateText =
               (dt != null) ? DateFormat('yyyy-MM-dd HH:mm').format(dt) : '—';
-              final linkText =
-              (dt != null) ? 'Dailylogs-${DateFormat('dMMMyyyy').format(dt)}' : 'Open';
 
               return DataRow(cells: [
                 DataCell(Text(dateText)),
@@ -101,26 +98,8 @@ class _SavedLogsTable extends StatelessWidget {
   }
 }
 
-
-
 // -- helpers
-String _fmtDate(dynamic v) {
-  DateTime? dt;
-  if (v is Timestamp) dt = v.toDate();
-  else if (v is String) dt = DateTime.tryParse(v);
-  if (dt == null) return '—';
-  return DateFormat('yyyy-MM-dd, HH:mm').format(dt);
-}
 
-String _fileNameDate(dynamic v) {
-  DateTime? dt;
-  if (v is Timestamp) dt = v.toDate();
-  else if (v is String) dt = DateTime.tryParse(v);
-  if (dt == null) return '';
-  return DateFormat('dMMMyyyy').format(dt); // e.g. 10Oct2025
-}
-
-String _uid() => FirebaseAuth.instance.currentUser!.uid;
 CollectionReference<Map<String, dynamic>> _userLogsCol(String uid) =>
     FirebaseFirestore.instance
         .collection('users').doc(uid).collection('daily_logs');
@@ -128,9 +107,6 @@ CollectionReference<Map<String, dynamic>> _userLogsCol(String uid) =>
 const String kDailyLogsCollection = 'daily_logs';
 
 const EdgeInsets _secPad = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
-
-
-
 
 class LatLngLike {
   final double lat;
@@ -148,7 +124,6 @@ class ClusterDailyLogsScreen extends StatefulWidget {
 }
 
 class _ClusterDailyLogsScreenState extends State<ClusterDailyLogsScreen> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // Form fields
   DateTime _date = DateTime.now();
@@ -157,7 +132,6 @@ class _ClusterDailyLogsScreenState extends State<ClusterDailyLogsScreen> {
   final _actualTimeCtrl = TextEditingController();
   final _remarksCtrl = TextEditingController();
 
-  String? _selectedFarmerId;
 
   String _ymd(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
 
@@ -174,8 +148,6 @@ class _ClusterDailyLogsScreenState extends State<ClusterDailyLogsScreen> {
   bool get _tracking => _gpsSub != null;
 
   bool _saving = false;            // gate: prevents double clicks
-  String? _draftDocId;             // idempotency key per draft
-  DateTime? _draftCreatedAt;       // timestamp used to derive the id
 
   late final String _uid;
   @override
@@ -236,17 +208,13 @@ class _ClusterDailyLogsScreenState extends State<ClusterDailyLogsScreen> {
   }
 
   // In your State class:
-  bool _farmerIdLoading = false;
   List<DropdownMenuItem<String>> _farmerIdItems = [];
-  String? _farmerIdError; // optional
+
   // Farmer / Field list for the dropdown
   String? _farmerId; // whatever variable your dropdown already uses
-  bool _loadingFarmers = false;
 
   Future<void> _loadFarmerIdItems() async {
     setState(() {
-      _farmerIdLoading = true;
-      _farmerIdError = null;
     });
 
     try {
@@ -292,13 +260,10 @@ class _ClusterDailyLogsScreenState extends State<ClusterDailyLogsScreen> {
       if (!mounted) return;
       setState(() {
         _farmerIdItems = items;
-        _farmerIdLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _farmerIdError = e.toString();
-        _farmerIdLoading = false;
       });
     }
   }
@@ -353,66 +318,6 @@ class _ClusterDailyLogsScreenState extends State<ClusterDailyLogsScreen> {
   }
 
 
-  Future<void> _saveToFirestore() async {
-
-    final authService = context.read<AuthService>();
-    final createdBy = authService.uid;
-    final createdAtLocal = _draftCreatedAt ??= DateTime.now().toUtc();
-    final docId = _draftDocId ??=
-    '${createdBy}_${createdAtLocal.microsecondsSinceEpoch}';
-
-    final orgPathUids = await _orgPathUidsFor(createdBy ?? 'anon');
-
-    final meta  = await AuditMeta.build(authService);
-    final audit = AuditMeta.build(authService);
-
-
-
-
-    final payload = <String, dynamic>{
-      'id': docId,
-      'createdAt': Timestamp.fromDate(createdAtLocal), // used by your orderBy + index
-      'createdBy': createdBy,
-      'date': Timestamp.fromDate(_date),
-      'orgPathUids': orgPathUids,
-      'activities': _activitiesCtrl.text.trim(),
-      'actualTime': _actualTimeCtrl.text.trim(),
-      'inputsSupplied'     : _inputsCtrl.text.trim(),
-      'observationsIssues' : _issuesCtrl.text.trim(),
-      'nextAction'         : _nextActionCtrl.text.trim(),
-      'farmerOrFieldId': _selectedFarmerId ?? '',
-      'planTime': _planTimeCtrl.text.trim(),
-      'remarks': _remarksCtrl.text.trim(),
-      // ----- new optional fields -----
-      'gps': {
-        'distanceKm': double.parse((_distanceMeters / 1000).toStringAsFixed(3)),
-        'points'    : _track.map((p) => p.toMap()).toList(),
-      },
-      ...audit,
-    };
-
-
-    final col = userLogsCol(currentUid());
-    await col.doc(docId).set(payload, SetOptions(merge: true));
-
-    if (!mounted) return;
-    // ✅ Reset the form so user won’t accidentally create duplicates
-    setState(() {
-      _activitiesCtrl.clear();
-      _actualTimeCtrl.clear();
-      _inputsCtrl.clear();
-      _issuesCtrl.clear();
-      _nextActionCtrl.clear();
-
-      _track.clear();
-      _draftDocId = null;
-      _draftCreatedAt = null;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Daily log saved')),
-    );
-  }
 
 
   @override
@@ -433,7 +338,6 @@ class _ClusterDailyLogsScreenState extends State<ClusterDailyLogsScreen> {
   @override
   Widget build(BuildContext context) {
     // If you later wire a FarmersProvider, replace this list with provider data.
-    final List<String> farmerIds = <String>[];
 
     return Scaffold(
       appBar: AppBar(

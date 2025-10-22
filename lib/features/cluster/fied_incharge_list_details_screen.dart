@@ -1,25 +1,47 @@
-// ...imports...
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../core/services/auth_service.dart';   // adjust path if different
+import '../../core/services/auth_service.dart';
 
-class FieldInchargeDetailScreen extends StatelessWidget {
+class FieldInchargeDetailScreen extends StatefulWidget {
   final String uid;
-  const FieldInchargeDetailScreen({super.key, required this.uid});
+
+  const FieldInchargeDetailScreen({
+    Key? key,
+    required this.uid,
+  }) : super(key: key);
+
+  @override
+  State<FieldInchargeDetailScreen> createState() =>
+      _FieldInchargeDetailScreenState();
+}
+
+class _FieldInchargeDetailScreenState extends State<FieldInchargeDetailScreen> {
+  late final DocumentReference<Map<String, dynamic>> _fiDoc =
+  FirebaseFirestore.instance.collection('users').doc(widget.uid);
 
   @override
   Widget build(BuildContext context) {
-    final docRef = FirebaseFirestore.instance.collection('users').doc(uid);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Field Incharge Details'),
-        leading: const BackButton(),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/cic/field-incharges');
+            }
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
             onPressed: () async {
               await context.read<AuthService>().signOut();
               if (!context.mounted) return;
@@ -29,60 +51,64 @@ class FieldInchargeDetailScreen extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: docRef.snapshots(),
+        stream: _fiDoc.snapshots(),
         builder: (context, snap) {
-          if (snap.hasError) {
-            return const Center(child: Text('Error loading FICs', style: TextStyle(color: Colors.red)));
-          }
-          if (!snap.hasData || !snap.data!.exists) {
+          if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final d = snap.data!.data()!;
-          // render whatever fields you want
+          if (!snap.hasData || !snap.data!.exists) {
+            return const Center(child: Text('Field Incharge not found.'));
+          }
+
+          final data = snap.data!.data()!;
+          final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+          final createdStr = createdAt != null
+              ? DateFormat('yyyy-MM-dd HH:mm').format(createdAt)
+              : '—';
+
+          Widget info(String label, String? value) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                    width: 130,
+                    child: Text(
+                      label,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    )),
+                Expanded(child: Text(value ?? '—')),
+              ],
+            ),
+          );
+
           return ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              ListTile(title: Text(d['displayName'] ?? '')),
-              ListTile(title: Text('UID: $uid')),
-              // more fields...
+              const SizedBox(height: 8),
+              info('Display Name', data['displayName']),
+              info('Phone', data['phone']),
+              info('Email', data['email']),
+              info('Role', data['role']),
+              info('Cluster Incharge UID', data['clusterInchargeUid']),
+              info('Created At', createdStr),
+              info('Address', data['address']),
+              info('Org Path', (data['orgPathUids'] ?? []).join(', ')),
+              const SizedBox(height: 20),
+              const Divider(),
+              Center(
+                child: Text(
+                  'End of details',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: Colors.grey),
+                ),
+              ),
             ],
           );
         },
       ),
     );
   }
-}
-
-
-
-  Widget _kv(String k, String v) => ListTile(
-    dense: true,
-    leading: const Icon(Icons.info_outline),
-    title: Text(k),
-    subtitle: Text(v.isEmpty ? '—' : v),
-  );
-
-
-/// tiny inline replacements for the old helpers
-class _InlineError extends StatelessWidget {
-  const _InlineError(this.message);
-  final String message;
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Text(message, style: const TextStyle(color: Colors.red)),
-    ),
-  );
-}
-
-class _EmptyNote extends StatelessWidget {
-  const _EmptyNote(this.message);
-  final String message;
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
-    ),
-  );
 }

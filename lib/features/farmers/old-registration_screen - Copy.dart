@@ -76,64 +76,87 @@ class FarmerRegistrationScreen extends StatefulWidget {
 class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
   final _q = TextEditingController();
 
+  // at state level
+  String? _soilType;
+
+  String? _soilTexture;
+
   @override
   void dispose() {
     _q.dispose();
     super.dispose();
   }
 
+  Future<void> _reload() async {
+    // TODO: call your real provider fetch method if you have one:
+    // await context.read<FarmersProvider>().fetchFarmers();
+  }
 
   @override
   Widget build(BuildContext context) {
-
+    final farmersProvider = context.watch<FarmersProvider>();
+    final all = farmersProvider.farmers; // whatever your provider exposes
+    final q = _q.text.toLowerCase().trim();
 
     // Search by name/phone (no 'village' field in your model)
+    final filtered = q.isEmpty
+        ? all
+        : all.where((f) {
+      final name = (f.name ?? '').toLowerCase();
+      final so = (f.so ?? '').toLowerCase();
+      final phone = (f.phone ?? '').toLowerCase();
+      // If you DO have village-like fields, add them here:
+      // final resVillage = (f.residenceVillage ?? '').toLowerCase();
+      // final cropVillage = (f.cropVillage ?? '').toLowerCase();
+      // return name.contains(q) || phone.contains(q) || resVillage.contains(q) || cropVillage.contains(q);
+      return name.contains(q) || phone.contains(q);
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Farmer Registration'),
         automaticallyImplyLeading: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () {
-            // back if possible
-            if (context.canPop()) {
-              context.pop();
-              return;
-            }
-            // fallback to a defined route in your GoRouter
-            context.go('/');                  // or: context.go('/farmer-network')
-            // or if you named it: context.goNamed('home');
-          },
-        ),
+		  icon: const Icon(Icons.arrow_back),
+		  tooltip: 'Back',
+		  onPressed: () {
+			  // back if possible
+			  if (context.canPop()) {
+			    context.pop();
+			    return;
+			  }
+			  // fallback to a defined route in your GoRouter
+			  context.go('/');                  // or: context.go('/farmer-network')
+		     // or if you named it: context.goNamed('home');
+		 },
+	  ),
         actions: [
-          // 1) View saved FIRST, so it’s always visible
-          IconButton(
-            icon: const Icon(Icons.list_alt_outlined),
-            tooltip: 'View saved',
-            onPressed: () => context.push('/fields/farmers/saved'),
-            // or: Navigator.of(context).push(MaterialPageRoute(
-            //   builder: (_) => const FieldObservationsListScreen(),
-            // ));
-          ),
+      // 1) View saved FIRST, so it’s always visible
+      IconButton(
+        icon: const Icon(Icons.list_alt_outlined),
+        tooltip: 'View saved',
+        onPressed: () => context.push('/fields/farmers/saved'),
+        // or: Navigator.of(context).push(MaterialPageRoute(
+        //   builder: (_) => const FieldObservationsListScreen(),
+        // ));
+      ),
 
-          // 2) Logout LAST
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () async {
-              try {
-                await context.read<AuthService>().logout();
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Logout failed: $e')),
-                  );
-                }
-              }
-            },
-          ),
+    // 2) Logout LAST
+      IconButton(
+        icon: const Icon(Icons.logout),
+        tooltip: 'Logout',
+        onPressed: () async {
+        try {
+          await context.read<AuthService>().logout();
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Logout failed: $e')),
+            );
+          }
+        }
+      },
+    ),
         ],
       ),
       body: Column(
@@ -167,10 +190,10 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
-              //.collection('farmers')
+                  //.collection('farmers')
                   .collection('farmer_registrations') // ✅ correct collection
                   .where('orgPathUids',
-                  arrayContains: context.watch<AuthService>().currentUserIdOrAnon)
+                          arrayContains: context.watch<AuthService>().currentUserIdOrAnon)
                   .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snap) {
@@ -225,7 +248,6 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
                           //'territory': m['territory'],
                           'season': m['season'],
                           'hybrid': m['hybrid'],
-                          'hybridFemale': m['hybridFemale'],
                           'plantedArea': m['plantedArea'],
                           'waterSource': m['waterSource'],
                           'previousCrop': m['previousCrop'],
@@ -259,78 +281,148 @@ class _FarmerRegistrationScreenState extends State<FarmerRegistrationScreen> {
       ),
     );
   }
-
-  void _showFarmerDetailsFromMap(Map<String, dynamic> m) {
-    final theme = Theme.of(context);
+  void _showFarmerDetails(Farmer f) {
     showModalBottomSheet(
       context: context,
+      showDragHandle: true,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          left: 16, right: 16, top: 12,
-          bottom: 12 + MediaQuery.of(context).padding.bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Farmer Details',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              _kv('ID', (m['id'] ?? '').toString()),
-              _kv('Name', (m['name'] ?? '').toString()),
-              _kv('So', (m['so'] ?? '').toString()),
-              _kv('Phone', (m['phone'] ?? '').toString()),
-              const Divider(),
-              _kv('Residence Village', (m['residenceVillage'] ?? '').toString()),
-              _kv('Crop Village', (m['cropVillage'] ?? '').toString()),
-              _kv('Cluster', (m['cluster'] ?? '').toString()),
-              //_kv('Territory', (m['territory'] ?? '').toString()),
-              const Divider(),
-              _kv('Season', (m['season'] ?? '').toString()),
-              _kv('Hybrid', (m['hybrid'] ?? '').toString()),
-              _kv('Planted Area', (m['plantedArea']?.toString() ?? '')),
-              _kv('Water Source', (m['waterSource'] ?? '').toString()),
-              _kv('Sowing Method', (m['sowingMethod'] ?? '').toString()),
-              _kv('Sowing Spacing', (m['sowingSpacing'] ?? '').toString()),
-              _kv('Previous Crop', (m['previousCrop'] ?? '').toString()),
-              _kv('Soil Type', (m['soilType'] ?? '').toString()),
-              _kv('Soil Texture', (m['soilTexture'] ?? '').toString()),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                  label: const Text('Close'),
-                ),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Farmer Details', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  _kv('ID', f.id ?? ''),
+                  _kv('Name', f.name ?? ''),
+                  _kv('So', f.so ?? ''),
+                  _kv('Phone', f.phone ?? ''),
+                  const Divider(),
+                  _kv('Residence Village', f.residenceVillage ?? ''),
+                  _kv('Crop Village', f.cropVillage ?? ''),
+                  _kv('Cluster', f.cluster ?? ''),
+                  //_kv('Territory', f.territory ?? ''),
+                  const Divider(),
+                  _kv('Season', f.season ?? ''),
+                  _kv('Hybrid', f.hybrid ?? ''),
+                  _kv('Planted Area', (f.plantedArea?.toString() ?? '')),
+                  _kv('Water Source', f.waterSource ?? ''),
+                  _kv('Sowing Method', f.sowingMethod ?? ''),
+                  _kv('Sowing Spacing', f.sowingSpacing ?? ''),
+                  _kv('Previous Crop', f.previousCrop ?? ''),
+                  _kv('Soil Type', f.soilType ?? ''),
+                  _kv('Soil Texture', f.soilTexture ?? ''),
+                  const SizedBox(height: 12),
+                  if ((f.photoPath ?? '').isNotEmpty) ...[
+                    Text('Photo', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(File(f.photoPath!), height: 140, fit: BoxFit.cover),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      const Spacer(),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close),
+                        label: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
+        );
+      },
+    );
+  }
+  
+  void _showFarmerDetailsFromMap(Map<String, dynamic> m) {
+  final theme = Theme.of(context);
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (_) => Padding(
+      padding: EdgeInsets.only(
+        left: 16, right: 16, top: 12,
+        bottom: 12 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Farmer Details',
+                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            _kv('ID', (m['id'] ?? '').toString()),
+            _kv('Name', (m['name'] ?? '').toString()),
+            _kv('So', (m['so'] ?? '').toString()),
+            _kv('Phone', (m['phone'] ?? '').toString()),
+            const Divider(),
+            _kv('Residence Village', (m['residenceVillage'] ?? '').toString()),
+            _kv('Crop Village', (m['cropVillage'] ?? '').toString()),
+            _kv('Cluster', (m['cluster'] ?? '').toString()),
+            //_kv('Territory', (m['territory'] ?? '').toString()),
+            const Divider(),
+            _kv('Season', (m['season'] ?? '').toString()),
+            _kv('Hybrid', (m['hybrid'] ?? '').toString()),
+            _kv('Planted Area', (m['plantedArea']?.toString() ?? '')),
+            _kv('Water Source', (m['waterSource'] ?? '').toString()),
+            _kv('Sowing Method', (m['sowingMethod'] ?? '').toString()),
+            _kv('Sowing Spacing', (m['sowingSpacing'] ?? '').toString()),
+            _kv('Previous Crop', (m['previousCrop'] ?? '').toString()),
+            _kv('Soil Type', (m['soilType'] ?? '').toString()),
+            _kv('Soil Texture', (m['soilTexture'] ?? '').toString()),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+                label: const Text('Close'),
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _kv(String k, String v) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(v.isEmpty ? '—' : v)),
-        ],
-      ),
-    );
-  }
+Widget _kv(String k, String v) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 140,
+          child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(v.isEmpty ? '—' : v)),
+      ],
+    ),
+  );
+}
 
 
 
@@ -383,13 +475,6 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
   // Agreement
   String _season = 'Kharif';
   final _hybridCtrl = TextEditingController();
-  final _hybridMaleCtrl = TextEditingController();
-  final _hybridFemaleCtrl = TextEditingController();
-
-  final _hybridMaleWeightCtrl = TextEditingController();
-
-  final _hybridFemaleWeightCtrl = TextEditingController();
-
   final _plantedAreaCtrl = TextEditingController();
   String? _waterSourceCtrl;
   final _previousCropCtrl = TextEditingController();
@@ -414,11 +499,6 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
   String _sowingType = 'Single';
   bool _dualFemale = false;
   bool _dualMale = false;
-
-  //Hybrid checkbox
-  bool _dualSelectMale = false;
-  bool _dualSelectFemale = false;
-
 
   // Sowing Method
   String _sowingMethod = 'Labour';
@@ -565,6 +645,22 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
     }
   }
 
+
+  /// Get the next farmer suffix in a transaction: counters/farmers.next
+  Future<int> _nextSuffix() async {
+    final ref = FirebaseFirestore.instance.collection('counters').doc('farmers');
+    return FirebaseFirestore.instance.runTransaction<int>((tx) async {
+      final snap = await tx.get(ref);
+      int next = 1;
+      if (snap.exists) {
+        next = (snap.data()?['next'] as int?) ?? 1;
+      }
+      tx.set(ref, {'next': next + 1}, SetOptions(merge: true));
+      return next;
+    });
+  }
+
+
   Future<void> _pickPhoto() async {
     if (_isPickingPhoto || !mounted) return;
     setState(() => _isPickingPhoto = true);
@@ -611,6 +707,28 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
     }
   }
 
+  Future<void> _bankaadharPhoto() async {
+    if (_isPickingaadhar || !mounted) return;
+    setState(() => _isPickingaadhar = true);
+    try {
+      final x = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 75,
+        maxWidth: 1920,
+        requestFullMetadata: false,
+        preferredCameraDevice: CameraDevice.rear,
+      );
+      if (x != null && mounted) setState(() => _aadharPhoto = x);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Camera error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingaadhar = false);
+    }
+  }
 
   Future<void> _exportSignature() async {
     if (_sig.isNotEmpty) {
@@ -718,7 +836,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
     await _posSub?.cancel();
     _posSub = null;
     setState(() {
-      _recomputeAreaAndMaybeFill();
+    _recomputeAreaAndMaybeFill();
     });
     if (_polyPoints.length < 3 && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -749,10 +867,10 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
 
   void _undoLastPoint() {
     if (_polyPoints.isNotEmpty) {
-      setState(() {
-        _polyPoints.removeLast();
-        _recomputeAreaAndMaybeFill();
-      });
+         setState(() {
+             _polyPoints.removeLast();
+             _recomputeAreaAndMaybeFill();
+           });
     }
   }
 
@@ -805,7 +923,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
       if (_bankNoCtrl.text.trim().isNotEmpty)
         'BankNo:${_bankNoCtrl.text.trim()}',
       //if (_addressCtrl.text.trim().isNotEmpty)
-      //'Address:${_addressCtrl.text.trim()}',
+        //'Address:${_addressCtrl.text.trim()}',
       if (_sowingDateCtrl.text.trim().isNotEmpty)
         'SowingTime:${_sowingDateCtrl.text.trim()}',
       'SowingType:${_sowingType}$dualText',
@@ -824,9 +942,6 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
       //territory: _territoryCtrl.text.trim(),
       season: _season,
       hybrid: _hybridCtrl.text.trim(),
-      hybridMale: _hybridMaleCtrl.text.trim(),
-      hybridFemale: _hybridFemaleCtrl.text.trim(),
-      hybridFemaleWeight: _hybridFemaleWeightCtrl.text.trim(),
       plantedArea: area,
       waterSource: _waterSourceCtrl,
       previousCrop: prevWithExtras, // includes extras for now
@@ -836,7 +951,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
       sowingSpacing: _sowingSpacing,
       photoPath: _photo?.path,
       signaturePng: _signaturePng == null ? null : base64Encode(_signaturePng!),
-      createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
+	    createdBy: FirebaseAuth.instance.currentUser?.uid ?? '',
       createdAt: Timestamp.now(),
     );
 
@@ -863,8 +978,8 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
       'soilType': _soilType,
       'soilTexture': _soilTexture,
       'photoPath': _photo?.path,
-      'signaturePng': _signaturePng == null ? null : base64Encode(_signaturePng!),
-      'createdBy': FirebaseAuth.instance.currentUser?.uid ?? '',
+      'signaturePng': _signaturePng == null ? null : base64Encode(_signaturePng!),      
+	     'createdBy': FirebaseAuth.instance.currentUser?.uid ?? '',
       'createdAt': FieldValue.serverTimestamp(),
     };
 
@@ -873,7 +988,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
     data['orgPathUids'] = (data['orgPathUids'] as List?) ?? (org.isNotEmpty ? org : [uid]);
 
     await FirebaseFirestore.instance
-    //.collection('farmers')
+        //.collection('farmers')
         .collection('farmer_registrations')    // ✅ correct collection
         .doc(id) // your FR_xxx id
         .set(data, SetOptions(merge: true));
@@ -1187,7 +1302,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
                                 });
                               } catch (_) {}
                             };
-                            _mapCtrl?.animateCamera(
+                        _mapCtrl?.animateCamera(
                                 CameraUpdate.newLatLng(p));
                           }
                         } catch (e) {
@@ -1206,7 +1321,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
                     Chip(label: Text('Points: ${_polyPoints.length}')),
                     const SizedBox(width: 12),
                     Chip(
-                      label: Text('Area: ${_formatArea(_polyAreaSqm)}'),
+                          label: Text('Area: ${_formatArea(_polyAreaSqm)}'),
                     ),
                     if (_tracking) const Chip(label: Text('Recording')),
                   ],
@@ -1227,69 +1342,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
                 ),
                 _tf('Hybrid (required)', _hybridCtrl, required: true),
                 const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        //title: const Text('Select'),
-                        value: _dualSelectMale,
-                        onChanged: (v) =>
-                            setState(() => _dualSelectMale = v ?? false),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: _tf(
-                        'Male',               // Label / tooltip
-                        _hybridMaleCtrl,    // Existing controller
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: _tf(
-                        'Weight',               // Label / tooltip
-                        _hybridMaleWeightCtrl,    // Existing controller
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: CheckboxListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        //title: const Text('Select'),
-                        value: _dualSelectFemale,
-                        onChanged: (v) =>
-                            setState(() => _dualSelectFemale = v ?? false),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: _tf(
-                        'Female',               // Label / tooltip
-                        _hybridFemaleCtrl,    // Existing controller
-                      ),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: _tf(
-                        'Weight',               // Label / tooltip
-                        _hybridFemaleWeightCtrl,    // Existing controller
-                      ),
-                    ),
-                  ],
-                ),
-
+                
                 //_displayOnly('Soil Type', _soilType),
                 // Soil Type
                 //_tf('Soil Type', TextEditingController(text: _soilType)),
@@ -1305,15 +1358,12 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
                   hint: const Text('Select soil type'),
                   items: kSoilTypes
                       .map<DropdownMenuItem<String>>(
-                          (e) => DropdownMenuItem<String>(value: e, child: Text(e)))
+                        (e) => DropdownMenuItem<String>(value: e, child: Text(e)))
                       .toList(),
                   onChanged: (v) => setState(() => _soilType = v), // v is String?
                   validator: (v) => v == null ? 'Please select a soil type' : null,
                 ),
                 const SizedBox(height: 12),
-
-
-
                 // Soil Texture
                 //_tf('Soil Texture', TextEditingController(text: _soilTexture)),
                 DropdownButtonFormField<String>(
@@ -1329,14 +1379,14 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
                         (e) => DropdownMenuItem<String>(value: e, child: Text(e)),
                   )
                       .toList(),
-                  onChanged: (v) => setState(() => _soilTexture = v), // v is String?
+                  onChanged: (v) => setState(() => _soilType = v), // v is String?
                   validator: (v) => v == null ? 'Please select a soil Texture' : null,
                 ),
                 const SizedBox(height: 12),
 
 
                 //_tf('Water Source (required)', _waterSourceCtrl,
-                //required: true),
+                    //required: true),
                 // Water Source / Previous Crop
                 //_tf('Water Source (required)', _waterSourceCtrl, required: true),
                 DropdownButtonFormField<String>(
@@ -1352,7 +1402,7 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
                         (e) => DropdownMenuItem<String>(value: e, child: Text(e)),
                   )
                       .toList(),
-                  onChanged: (v) => setState(() => _waterSourceCtrl = v), // v is String?
+                  onChanged: (v) => setState(() => _soilType = v), // v is String?
                   validator: (v) => v == null ? 'Please select Water Source' : null,
                 ),
                 const SizedBox(height: 12),
@@ -1560,6 +1610,19 @@ class _FarmerRegistrationFormState extends State<FarmerRegistrationForm> {
     );
   }
 
+  Widget _displayOnly(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          border: const OutlineInputBorder(),
+          labelText: label,
+          isDense: true,
+        ),
+        child: Text(value.isEmpty ? '-' : value),
+      ),
+    );
+  }
 
   Widget _section(String title) {
     return Padding(

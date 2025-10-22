@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter/material.dart';
@@ -50,8 +51,6 @@ class DashboardScreen extends StatelessWidget {
     final auth = context.watch<AuthService>();
     Theme.of(context);
 
-    final isManager = auth.role?.toLowerCase() == Roles.manager;
-
     final isCIC = auth.role?.toLowerCase() == Roles.clusterIncharge;
 
     final isFIC = auth.role?.toLowerCase() == Roles.fieldIncharge;
@@ -101,90 +100,38 @@ class DashboardScreen extends StatelessWidget {
           route: '/daily-logs',
         ),
 
-        _DashTile(
-          label: 'Field Observations',
-          color: const Color(0xFFF5EDC7),
-          icon: Icons.edit_note,
-          route: '/field/observations',
-        ),
-        /*_DashTile(
+      ],
+
+
+// =====================
+// Normal tiles
+// =====================
+
+
+      _DashTile(
+        label: 'Field Observations',
+        color: const Color(0xFFF5EDC7),
+        icon: Icons.edit_note,
+        route: '/field/observations',
+      ),
+      /*_DashTile(
         label: 'Daily logs & Schedule',
         color: const Color(0xFFE9ECEF),
         icon: Icons.access_time,
         route: '/daily/logs',
       ),*/
-        _DashTile(
-          label: 'Diagnostics',
-          color: const Color(0xFFFCE0E0),
-          icon: Icons.health_and_safety_outlined,
-          route: '/diagnostics',
-        ),
-        _DashTile(
-          label: 'Field Diagnostics',
-          color: const Color(0xFFE0F2F1),
-          icon: Icons.biotech_outlined,
-          route: '/field/diagnostics',
-        ),
-
-
-      ],
-
-
-// =====================
-// Manager tiles
-// Following cards applicable Only for Manager
-// =====================
-      if (isManager) ...[
-        _DashTile(
-          label: 'Manager - Farmer Network',
-          color: Colors.blue,
-          icon: Icons.group,
-          route: '/manager-farmer-network',
-        ),
-        _DashTile(
-          label: 'Manager - Farmer Registrations',
-          color: Colors.green,
-          icon: Icons.person_add,
-          route: '/manager-farmer-registrations',
-        ),
-        _DashTile(
-          label: 'Manager - Field Incharges',
-          color: Colors.orange,
-          icon: Icons.person,
-          route: '/manager-field-incharge-details',
-        ),
-        _DashTile(
-          label: 'Manager - Daily Logs',
-          color: Colors.teal,
-          icon: Icons.note,
-          route: '/manager-daily-logs',
-        ),
-        _DashTile(
-          label: 'Manager - Activity Schedule',
-          color: Colors.purple,
-          icon: Icons.schedule,
-          route: '/manager-activity-schedule',
-        ),
-        _DashTile(
-          label: 'Manager - Input Activities',
-          color: Colors.red,
-          icon: Icons.inventory,
-          route: '/manager-input-activity',
-        ),
-        _DashTile(
-          label: 'Manager - Field Observations',
-          color: Colors.indigo,
-          icon: Icons.visibility,
-          route: '/manager-field-observations',
-        ),
-        _DashTile(
-          label: 'Manager - Field Diagnostics',
-          color: Colors.brown,
-          icon: Icons.medical_services,
-          route: '/manager-field-diagnostics',
-        ),
-      ],
-
+      _DashTile(
+        label: 'Diagnostics',
+        color: const Color(0xFFFCE0E0),
+        icon: Icons.health_and_safety_outlined,
+        route: '/diagnostics',
+      ),
+      _DashTile(
+        label: 'Field Diagnostics',
+        color: const Color(0xFFE0F2F1),
+        icon: Icons.biotech_outlined,
+        route: '/field/diagnostics',
+      ),
 
 
 // =====================

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../../core/services/auth_service.dart'; // adjust path if needed
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,8 +31,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _addressCtrl = TextEditingController();
 
   File? _photoFile;
-
   bool _loading = true;
+
 
   // ---- helpers ----
   InputDecoration _dec(String label, {String? hint, Widget? suffix}) =>
@@ -62,33 +63,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+
+  /// 🔹 Load settings specific to the logged-in role
   Future<void> _load() async {
+    final auth = context.read<AuthService>();
+    final user = auth.currentUser;
+    if (user == null) {
+      setState(() => _loading = false);
+      return;
+    }
+
     final sp = await SharedPreferences.getInstance();
-    final raw = sp.getString('settings.profile');
+    final key = 'settings.profile.${user.uid}';
+    Map<String, dynamic>? map;
+
+    // 🔹 1. Try local cache first
+    final raw = sp.getString(key);
     if (raw != null && raw.isNotEmpty) {
       try {
-        final map = jsonDecode(raw) as Map<String, dynamic>;
-        _nameCtrl.text = map['name'] ?? '';
-        _eduCtrl.text = map['education'] ?? '';
-        _expCtrl.text = (map['experience'] ?? '').toString();
-        _villagesCtrl.text = (map['villages'] ?? []) is List
-            ? (map['villages'] as List).join(', ')
-            : (map['villages'] ?? '');
-        _mobileCtrl.text = map['mobile'] ?? '';
-        _addressCtrl.text = map['address'] ?? '';
-        final path = map['photoPath'];
-        if (path is String && path.isNotEmpty && File(path).existsSync()) {
-          _photoFile = File(path);
+        map = jsonDecode(raw) as Map<String, dynamic>;
+      } catch (_) {}
+    }
+
+    // 🔹 2. If empty, fetch from Firestore
+    if (map == null) {
+      try {
+        // Instead of auth.firebaseFirestore
+        final fs = FirebaseFirestore.instance;
+
+        // Make sure map is non-null
+        if (map != null) {
+          await fs.collection('user_settings').doc(user.uid).set(map, SetOptions(merge: true));
         }
-      } catch (_) {
-        // ignore corrupted state
+        /*if (doc.exists) {
+          map = doc.data() as Map<String, dynamic>;
+          await sp.setString(key, jsonEncode(map)); // cache it
+        }*/
+      } catch (e) {
+        debugPrint('⚠️ Firestore fetch failed: $e');
       }
     }
+
+    // 🔹 3. Apply values to form fields
+    if (map != null) {
+      _nameCtrl.text = map['name'] ?? '';
+      _eduCtrl.text = map['education'] ?? '';
+      _expCtrl.text = (map['experience'] ?? '').toString();
+      _villagesCtrl.text = (map['villages'] is List)
+          ? (map['villages'] as List).join(', ')
+          : (map['villages'] ?? '');
+      _mobileCtrl.text = map['mobile'] ?? '';
+      _addressCtrl.text = map['address'] ?? '';
+      final path = map['photoPath'];
+      if (path is String && path.isNotEmpty && File(path).existsSync()) {
+        _photoFile = File(path);
+      }
+    }
+
     setState(() => _loading = false);
   }
 
+
+  /// 🔹 Save settings under the role-specific key
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final auth = context.read<AuthService>();
+    final user = auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in')),
+      );
+      return;
+    }
 
     final villages = _villagesCtrl.text
         .split(',')
@@ -104,14 +151,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'mobile': _mobileCtrl.text.trim(),
       'address': _addressCtrl.text.trim(),
       'photoPath': _photoFile?.path ?? '',
+      'updatedAt': DateTime.now().toIso8601String(),
     };
 
+    // 🔹 1. Save locally
     final sp = await SharedPreferences.getInstance();
-    await sp.setString('settings.profile', jsonEncode(map));
+    final key = 'settings.profile.${user.uid}';
+    await sp.setString(key, jsonEncode(map));
+
+    // 🔹 2. Save to Firestore
+    try {
+      // Instead of auth.firebaseFirestore
+      final fs = FirebaseFirestore.instance;
+      await fs.collection('user_settings').doc(user.uid).set(map, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('⚠️ Firestore save failed: $e');
+    }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved')),
+      const SnackBar(content: Text('Settings saved successfully')),
     );
     Navigator.of(context).maybePop(map);
   }
@@ -192,12 +251,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           },
         ),
         actions: [
-            // 1) View saved FIRST, so it’s always visible
+            /*// 1) View saved FIRST, so it’s always visible
             IconButton(
               icon: const Icon(Icons.list_alt_outlined),
               tooltip: 'View saved',
               onPressed: () => context.push('/settings/settings/saved'),
-            ),
+            ),*/
 
             // 2) Logout LAST
             IconButton(
